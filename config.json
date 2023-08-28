@@ -1,0 +1,3 @@
+{
+    "db": "postgres://nikita@localhost:5432/nikita"
+}

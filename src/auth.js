@@ -53,8 +53,6 @@ async function downloadFiles(auth) {
                 if (fs.existsSync('files/' + fileInfo.name)) {
                     continue;
                 }
-
-                console.log(fileInfo);
     
                 const fileStream = fs.createWriteStream('files/' + fileInfo.name);
                 const file = await service.files.get({

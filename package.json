@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "testdb": "node test_connection.js",
+    "start": "node --no-warnings index.js",
+    "testdb": "node --no-warnings test_connection.js",
     "pm2": "pm2 start index.js"
   },
   "author": "Nikita Bychkov",

@@ -53,18 +53,30 @@ async function downloadFiles(auth) {
                 if (fs.existsSync('files/' + fileInfo.name)) {
                     continue;
                 }
+
+                let createFile = (drive, fileId, name) => {
+                    const fileStream = fs.createWriteStream('files/' + fileInfo.name);
+                    return new Promise((resolve, reject) => {
+                        drive.files.get({
+                            fileId,
+                            alt: 'media',
+                            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        }, {
+                            responseType: 'stream'
+                        },
+                        function(err, { data }) {
+                            data.pipe(fileStream);
+                            if (err) {
+                                reject(err)
+                            }
+                            data.on('finish', () => resolve(`${fileInfo.name} downloaded`));
+                        }
+                    );
+                    });
+                }
     
-                const fileStream = fs.createWriteStream('files/' + fileInfo.name);
-                const file = await service.files.get({
-                    fileId: fileInfo.id,
-                    alt: 'media',
-                    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                }, {
-                    responseType: 'stream'
-                });
-    
-                file.data.on('end', () => console.log(`${fileInfo.name} downloaded (${i+1}/${files.length})`));
-                file.data.pipe(fileStream);
+                console.log(await createFile(service, fileInfo.id, fileInfo.name));
+
             }
 
         }

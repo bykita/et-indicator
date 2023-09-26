@@ -45,8 +45,9 @@ const TrainRuns = sequelize.define('train_runs', {
     model_code: Sequelize.STRING,
     payload: Sequelize.INTEGER,
     body_volume: Sequelize.DECIMAL,
-    idle_days: Sequelize.INTEGER,
-    idle_days_loaded: Sequelize.INTEGER,
+    idle_days: Sequelize.INTEGER, // null
+    idle_days_loaded: Sequelize.INTEGER, // null
+    reporting_loading_date: Sequelize.DATEONLY
 }, {
     indexes: [
         {
@@ -102,11 +103,43 @@ async function launch() {
             const runInfo = data[i];
             delete runInfo.OrdCol;
 
+            const IGNORED_ACTIONS = [
+                'ЗАПП',
+                'ПРЗН',
+                'ЗАНТ'
+            ];
+
+            if (IGNORED_ACTIONS.includes(runInfo.operation_start)
+                || runInfo.weight < 0
+                || runInfo.payload <= 0
+            ) {
+                continue;
+            }
+
+            const getFixedDate = (datetime) => {
+                let date_corrected = new Date(datetime);
+                date_corrected.setHours(date_corrected.getHours() + 6);
+                const offset = date_corrected.getTimezoneOffset();
+                date_corrected = new Date(date_corrected.getTime() - (offset*60*1000));
+                return date_corrected.toISOString().split('T')[0];
+            }
+
             const date = runInfo.datetime_start.split(' ')[0];
+
+            if (runInfo.weight > Math.ceil(runInfo.payload / 10)) {
+                if (runInfo.payload < 100) {
+                    runInfo.payload *= 10;
+                } else if (runInfo.weight > 100) {
+                    runInfo.weight /= 100;
+                }
+            }
+
             const defaults = {
                 ...runInfo,
-                is_deleted: false,
                 date_start: date,
+                idle_days: 0,
+                idle_days_loaded: 0,
+                reporting_loading_date: getFixedDate(runInfo.datetime_start),
                 file,
             }
 
@@ -120,61 +153,9 @@ async function launch() {
             });
 
             if (!created) {
-                if (new Date(trainRun.datetime_start) < new Date(runInfo.datetime_start)) {
-                    await TrainRuns.update(defaults, {
-                        where: {
-                            id: trainRun.id
-                        }
-                    })
-                }
+                // do nothing
             }
 
-            const getDateDifference = (dateStart, dateEnd) => {
-                const oneDay = 24 * 60 * 60 * 1000; 
-                const firstDate = new Date(dateStart);
-                const secondDate = new Date(dateEnd);
-
-                return Math.round(Math.abs((firstDate - secondDate) / oneDay));
-            }
-
-            let prevTrainRun = await TrainRuns.findOne({
-                attributes: [
-                    Sequelize.fn('MAX', Sequelize.col('datetime_end')),
-                ],
-                where: {
-                    no: trainRun.no,
-                    datetime_end: {
-                        [Op.lte]: trainRun.datetime_start
-                    }
-                },
-                raw: true
-            })
-
-            if (prevTrainRun.max !== null) {
-                trainRun.idle_days = getDateDifference(prevTrainRun.max, trainRun.datetime_start);;
-            }
-
-            if (trainRun.loaded_or_empty === 'Груженый') {
-                prevTrainRun = await TrainRuns.findOne({
-                    attributes: [
-                        Sequelize.fn('MAX', Sequelize.col('datetime_end')),
-                    ],
-                    where: {
-                        no: trainRun.no,
-                        loaded_or_empty: trainRun.loaded_or_empty,
-                        datetime_end: {
-                            [Op.lte]: trainRun.datetime_start
-                        }
-                    },
-                    raw: true
-                })
-        
-                if (prevTrainRun.max !== null) {
-                    trainRun.idle_days_loaded = getDateDifference(prevTrainRun.max, trainRun.datetime_start);;
-                }
-            };
-
-            trainRun.save();
         }
 
         await UsedFiles.create({ file });

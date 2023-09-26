@@ -26,7 +26,8 @@ function dateToObj(date) {
 function getFileList(folder){
     let files = fs.readdirSync(folder);
     files = files.filter(i => i.endsWith('.xlsx'))
-    return sortFilesByDate(files);
+    // return sortFilesByDate(files);
+    return files;
 }
 
 export {getFileList};

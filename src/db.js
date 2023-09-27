@@ -130,7 +130,7 @@ async function launch() {
                 if (runInfo.payload < 100) {
                     runInfo.payload *= 10;
                 } else if (runInfo.weight > 100) {
-                    runInfo.weight /= 100;
+                    runInfo.weight /= 10;
                 }
             }
 
